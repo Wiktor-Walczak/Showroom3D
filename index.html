@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Showroom 3D — Portfolio</title>
+
+  <link rel="stylesheet" href="styles.css"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+
+  <meta name="description" content="Car Editor 3D z prawdziwym modelem auta i konfiguracją: kolor, wykończenie, ujęcia, explode, zrzut ekranu, zapisz/wczytaj. Wczytaj też własny model GLB/GLTF."/>
+  
+  <!-- Import map umożliwia używanie krótszych importów 'three' w modułach -->
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+      "three/": "https://unpkg.com/three@0.160.0/"
+    }
+  }
+  </script>
+</head>
+<body>
+  <header class="header">
+    <nav class="navbar container">
+      <div class="brand">
+        <i class="fa-solid fa-cube"></i>
+        <span>Car Editor 3D</span>
+      </div>
+      <ul class="navlinks">
+        <li><a href="#viewer">Konfigurator</a></li>
+        <li><a href="#features">Funkcje</a></li>
+        <li><a href="#contact">Kontakt</a></li>
+      </ul>
+      <a href="#contact" class="btn btn-primary small">Wyceń projekt</a>
+    </nav>
+  </header>
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="hero-overlay"></div>
+    <div class="container hero-inner">
+      <div class="hero-copy">
+        <h1>Interaktywny Car Editor 3D</h1>
+        <p>Realny model 3D, elegancki konfigurator i eksport materiałów — gotowe do pokazów i ofert. Możesz też wczytać swój model GLB/GLTF.</p>
+        <div class="hero-cta">
+          <a href="#viewer" class="btn btn-primary">Otwórz konfigurator</a>
+          <a href="#features" class="btn btn-ghost">Zobacz funkcje</a>
+        </div>
+      </div>
+      <div class="hero-note">
+        <i class="fa-regular fa-hand-pointer"></i> Przeciągaj, aby obracać — przewiń niżej po więcej
+      </div>
+    </div>
+  </section>
+
+  <!-- VIEWER -->
+  <section id="viewer" class="viewer-section">
+    <div class="container viewer-grid">
+      <div class="canvas-wrap">
+        <canvas id="webgl"></canvas>
+
+        <!-- Hotspoty (pozycjonowane w JS) -->
+        <div class="hotspot" id="hs-body">
+          <div class="dot"></div>
+          <div class="tip">Nadwozie — zmień <strong>kolor</strong> i <strong>wykończenie</strong> po prawej.</div>
+        </div>
+        <div class="hotspot" id="hs-wheel">
+          <div class="dot"></div>
+          <div class="tip">Koła — kliknij „Explode”, aby rozsunąć podzespoły.</div>
+        </div>
+
+        <!-- Overlay ładowania -->
+        <div id="loading">
+          <div class="spinner"></div>
+          <div class="loading-text">Wczytywanie modelu…</div>
+        </div>
+      </div>
+
+      <aside class="panel" id="panel">
+        <h3>Konfigurator</h3>
+
+        <div class="group">
+          <label class="group-label">Model</label>
+          <div class="model-row">
+            <input id="model-path" type="text" placeholder="np. Models/RaceCar.glb" value="Models/RaceCar.glb">
+            <button class="btn btn-ghost" id="load-from-path"><i class="fa-solid fa-download"></i> Załaduj</button>
+          </div>
+          <div class="model-row">
+            <input id="model-file" type="file" accept=".glb,.gltf,model/gltf-binary,model/gltf+json">
+            <button class="btn btn-ghost" id="load-from-file"><i class="fa-solid fa-file-import"></i> Wczytaj plik</button>
+          </div>
+          <p class="note small">Możesz podać ścieżkę w projekcie (folder <code>Models</code>) albo załadować plik z dysku.</p>
+        </div>
+
+        <div class="group">
+          <label class="group-label">Kolor lakieru</label>
+          <div class="swatches" id="color-swatches">
+            <!-- górny rządek (pierwotne) -->
+            <button class="swatch" data-color="#ffffff" title="Pearl White"></button>
+            <button class="swatch" data-color="#111827" title="Graphite"></button>
+            <button class="swatch" data-color="#e11d48" title="Crimson"></button>
+            <button class="swatch" data-color="#2563eb" title="Indigo Blue"></button>
+            <button class="swatch" data-color="#10b981" title="Emerald"></button>
+            <button class="swatch" data-color="#f59e0b" title="Amber"></button>
+            <button class="swatch" data-color="#000000" title="Black"></button>
+          </div>
+
+          <!-- dodatkowy, dolny rządek kolorów -->
+          <div class="swatches extra-row" id="color-swatches-extra">
+            <button class="swatch" data-color="#8b5cf6" title="Violet"></button>
+            <button class="swatch" data-color="#06b6d4" title="Cyan"></button>
+            <button class="swatch" data-color="#ec4899" title="Pink"></button>
+            <button class="swatch" data-color="#7c3aed" title="Purple"></button>
+            <button class="swatch" data-color="#65a30d" title="Green"></button>
+            <button class="swatch" data-color="#f97316" title="Orange"></button>
+          </div>
+        </div>
+
+        <div class="group">
+          <label class="group-label">Wykończenie</label>
+          <div class="segmented" id="finish">
+            <button data-finish="gloss" class="active">Połysk</button>
+            <button data-finish="satin">Satyna</button>
+            <button data-finish="matte">Mat</button>
+          </div>
+        </div>
+
+        <div class="group">
+          <label class="group-label">Sterowanie</label>
+          <div class="controls">
+            <label class="switch">
+              <input type="checkbox" id="autorotate" checked>
+              <span class="slider"></span>
+              <span class="switch-text">Auto-rotacja</span>
+            </label>
+
+            <label class="switch">
+              <input type="checkbox" id="shadow" checked>
+              <span class="slider"></span>
+              <span class="switch-text">Cień na podłożu</span>
+            </label>
+
+            <label class="switch">
+              <input type="checkbox" id="wireframe">
+              <span class="slider"></span>
+              <span class="switch-text">Siatka (wireframe)</span>
+            </label>
+
+            <!-- nowy switch: pokaz/ukryj hotspoty -->
+            <label class="switch">
+              <input type="checkbox" id="show-hotspots" checked>
+              <span class="slider"></span>
+              <span class="switch-text">Pokaż hotspoty</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="group">
+          <label class="group-label">Ujęcia</label>
+          <div class="shots">
+            <button class="btn btn-ghost" id="view-front"><i class="fa-regular fa-circle-dot"></i> Bok</button>
+            <button class="btn btn-ghost" id="view-side"><i class="fa-regular fa-circle-dot"></i> Przód</button>
+            <button class="btn btn-ghost" id="view-top"><i class="fa-regular fa-circle-dot"></i> Góra</button>
+          </div>
+        </div>
+
+        <div class="group">
+          <label class="group-label">Akcje</label>
+          <div class="actions">
+            <button class="btn btn-primary" id="explode"><i class="fa-solid fa-grip-lines"></i> Explode</button>
+            <button class="btn btn-primary" id="screenshot"><i class="fa-regular fa-image"></i> Zrzut ekranu</button>
+            <button class="btn btn-ghost" id="reset"><i class="fa-solid fa-rotate-left"></i> Reset</button>
+          </div>
+          <div class="persist">
+            <button class="btn btn-save" id="save-conf"><i class="fa-regular fa-bookmark"></i> Zapisz konfigurację</button>
+            <button class="btn btn-ghost" id="load-conf"><i class="fa-solid fa-cloud-arrow-down"></i> Wczytaj</button>
+          </div>
+        </div>
+
+        <div class="note small">
+          * Konfiguracja zapisywana lokalnie w przeglądarce (localStorage).
+        </div>
+      </aside>
+    </div>
+  </section>
+
+  
+  <!-- FEATURES -->
+  <section id="features" class="features">
+    <div class="container">
+      <h2>Co otrzymujesz?</h2>
+      <div class="features-grid">
+        <div class="card">
+          <i class="fa-solid fa-gauge-high"></i>
+          <h4>Wydajność</h4>
+          <p>Optymalizacja świateł, cieni i materiałów. Płynna praca nawet na słabszych urządzeniach.</p>
+        </div>
+        <div class="card">
+          <i class="fa-solid fa-sliders"></i>
+          <h4>Konfigurator</h4>
+          <p>Zmiana kolorów, wykończeń, ujęć kamery i tryb „exploded view”.</p>
+        </div>
+        <div class="card">
+          <i class="fa-regular fa-image"></i>
+          <h4>Eksport</h4>
+          <p>Jednym kliknięciem wygenerujesz zrzut ekranu w wysokiej jakości.</p>
+        </div>
+        <div class="card">
+          <i class="fa-solid fa-circle-info"></i>
+          <h4>Hotspoty</h4>
+          <p>Opisuj kluczowe cechy produktu w kontekście modelu 3D.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CONTACT -->
+  <section id="contact" class="contact">
+    <div class="container contact-grid">
+      <div>
+        <h2>Porozmawiajmy o Twoim projekcie</h2>
+        <p>Potrzebujesz konfiguratora auta, mebla, urządzenia lub pakietu kolorystycznego? Przygotuję dedykowany showroom 3D.</p>
+        <ul class="bullets">
+          <li><i class="fa-regular fa-circle-check"></i> Integracja z CMS / sklepem</li>
+          <li><i class="fa-regular fa-circle-check"></i> Modele glTF / USDZ / OBJ</li>
+          <li><i class="fa-regular fa-circle-check"></i> Optymalizacja i SEO</li>
+        </ul>
+      </div>
+      <form class="contact-form">
+        <input type="text" placeholder="Imię" required>
+        <input type="email" placeholder="E-mail" required>
+        <textarea rows="5" placeholder="Wiadomość"></textarea>
+        <button type="submit" class="btn btn-primary">Wyślij zapytanie</button>
+      </form>
+    </div>
+  </section>
+
+  <footer class="footer">
+    <div class="container footer-inner">
+      <span>© Showroom 3D — portfolio</span>
+      <div class="socials">
+        <a href="https://github.com/Wiktor-Walczak"><i class="fa-brands fa-github"></i></a>
+        <a href="https://wikite.itch.io"><i class="fa-brands fa-itch-io"></i></a>
+        <a href="https://www.instagram.com/w.wxlczvak"><i class="fa-brands fa-instagram"></i></a>
+      </div>
+    </div>
+  </footer>
+
+  <!-- main as ES module -->
+  <script type="module" src="main.js"></script>
+</body>
+</html>
